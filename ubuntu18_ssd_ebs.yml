@@ -1,0 +1,59 @@
+heat_template_version: 2015-04-30
+outputs:
+  instance_group:
+    description: Shows details of all virtual servers.
+    value: { get_attr: [INSTANCE, show] }
+parameters:
+    image_id:
+        type: string
+        label: Image ID
+        description: Image to be used. Check all available options in Horizon dashboard or by using openstack image list command.
+        default: 3db819bd-1a93-4b49-b718-adc5b45a50bc
+    private_net_id:
+        type: string
+        description: ID/Name of private network
+        default: net.tenant.234
+    flavor_id:
+        type: string
+        description: ID/Name of flavor
+        default: m2.small.4.8.100
+    volume_type:
+        type: string
+        description: The type of volume
+        default: Instance_SSD
+
+resources:
+        VOLUME:
+                type: OS::Cinder::Volume
+                properties:
+                        name: os-volume
+                        volume_type: { get_param: volume_type }
+                        size: 100
+                        image : { get_param: image_id }
+                        
+        EBS:
+                type: OS::Cinder::Volume
+                properties:
+                        name: ebs-volume
+                        volume_type: { get_param: volume_type }
+                        size: 100
+        
+        INSTANCE:
+                type: OS::Nova::Server
+                properties:
+                        name: test-vm
+                        flavor: { get_param: flavor_id }
+                        block_device_mapping: [{"volume_size": 100, "volume_id": { get_resource: VOLUME }, "delete_on_termination": False, "device_name": "/dev/vda" }]
+                        availability_zone: 2020-HP-Pool
+                        image: { get_param: image_id }
+                        networks:
+                                - network: { get_param: private_net_id }
+                        security_groups:
+                                - default
+                                                
+        ATTACHMENT:
+                type: OS::Cinder::VolumeAttachment
+                properties:
+                        volume_id: { get_resource: EBS }
+                        instance_uuid: { get_resource: INSTANCE }
+                        mountpoint: /dev/vdb
